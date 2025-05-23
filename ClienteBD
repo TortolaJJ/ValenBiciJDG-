@@ -1,0 +1,64 @@
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.Scanner;
+
+/**
+ *
+ * @author JOSEJAVIER-PC
+ */
+public class ClienteBD {
+
+    private static final String AWSDNS = "databasedmp.cm6pc9b4jil5.us-east1.rds.amazonaws.com";
+    private static final String DBNAME = "starwars";
+    private static final int PUERTO = 3306;
+    private static final String USERNAME = "admin";
+    private static final String PASSWORD = "123456Ab$";
+
+    public static void main(String[] args) {
+        try (
+            Scanner sc = new Scanner(System.in);
+            Connection con = DriverManager.getConnection(
+                "jdbc:mysql://" + AWSDNS + ":" + PUERTO + "/" + DBNAME,
+                USERNAME, PASSWORD)
+        ) {
+            Statement stmt = con.createStatement();
+
+            // Consulta sin parámetros
+            ResultSet rs = stmt.executeQuery("SELECT * FROM films");
+            System.out.println("Estas son las películas de Star Wars:");
+            while (rs.next()) {
+                System.out.println(rs.getInt(1) + " - " + rs.getString(2) + " (" + rs.getString(3) + ")");
+            }
+
+            System.out.print("Elige un número de película y te mostraré los personajes que aparecen en ella: ");
+            String numPelicula = sc.nextLine();
+
+            // Consulta con parámetro
+            String query = "SELECT C.id, C.name, C.height, C.mass, C.hair_color, C.skin_color " +
+                           "FROM characters C " +
+                           "JOIN character_films CF ON C.id = CF.id_character " +
+                           "JOIN films F ON F.id = CF.id_film " +
+                           "WHERE CF.id_film = ?";
+            PreparedStatement pStmt = con.prepareStatement(query);
+            pStmt.setString(1, numPelicula);
+
+            ResultSet rs2 = pStmt.executeQuery();
+            System.out.println("Personajes de la película seleccionada:");
+            while (rs2.next()) {
+                System.out.println(
+                    rs2.getInt("id") + " - " + rs2.getString("name") + ", " +
+                    rs2.getInt("height") + "cm, " +
+                    rs2.getFloat("mass") + "kg, " +
+                    "Pelo: " + rs2.getString("hair_color") + ", " +
+                    "Piel: " + rs2.getString("skin_color")
+                );
+            }
+
+        } catch (Exception e) {
+            System.out.println("Ocurrió un error: " + e.getMessage());
+        }
+    }
+}
