@@ -1,0 +1,127 @@
+package com.mycompany.valenbiciapiv2;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.IOException;
+
+public class DatosJSon {
+
+    private static String API_URL;
+    private String datos = "";
+    private String[] values;
+    private int numEst;
+
+    public DatosJSon(int nE) {
+        numEst = nE;
+        datos = "";
+        API_URL = "https://valencia.opendatasoft.com/api/explore/v2.1/catalog/datasets/valenbisi-disponibilitat-valenbisi-dsiponibilidad/records?limit=" + nE;
+        values = new String[numEst];
+        for (int i = 0; i < numEst; i++) {
+            values[i] = "";
+        }
+    }
+
+    public void mostrarDatos(int nE) {
+        numEst = nE;
+        datos = "";
+        API_URL = "https://valencia.opendatasoft.com/api/explore/v2.1/catalog/datasets/valenbisi-disponibilitat-valenbisi-dsiponibilidad/records?limit=" + nE;
+
+        values = new String[numEst];
+        for (int i = 0; i < numEst; i++) {
+            values[i] = "";
+        }
+
+        if (API_URL.isEmpty()) {
+            setDatos(getDatos().concat("La URL de la API no está especificada."));
+            return;
+        }
+
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpGet request = new HttpGet(API_URL);
+            HttpResponse response = httpClient.execute(request);
+            HttpEntity entity = response.getEntity();
+
+            if (entity != null) {
+                String result = EntityUtils.toString(entity);
+
+                // 👉 Imprime la respuesta JSON completa (puedes quitar esto después de probar)
+                System.out.println(result);
+
+                try {
+                    JSONObject jsonObject = new JSONObject(result);
+                    JSONArray resultsArray = jsonObject.getJSONArray("results");
+
+                    for (int i = 0; i < resultsArray.length(); i++) {
+                        JSONObject record = resultsArray.getJSONObject(i);
+
+                        int id = record.optInt("number", -1);
+                        String direccion = record.optString("address", "Sin dirección");
+                        int bicis = record.optInt("available_bikes", 0);
+                        int anclajes = record.optInt("available_bike_stands", 0);
+                        boolean operativo = record.optBoolean("status", false);
+
+                        double lat = 0.0, lon = 0.0;
+                        Object geo = record.opt("geo_point_2d");
+
+                        if (geo instanceof JSONArray) {
+                            JSONArray geoArray = (JSONArray) geo;
+                            lat = geoArray.getDouble(0);
+                            lon = geoArray.getDouble(1);
+                        } else if (geo instanceof JSONObject) {
+                            JSONObject geoObj = (JSONObject) geo;
+                            lat = geoObj.getDouble("lat");
+                            lon = geoObj.getDouble("lon");
+                        } else if (geo instanceof String) {
+                            String[] parts = geo.toString().split(",");
+                            lat = Double.parseDouble(parts[0].trim());
+                            lon = Double.parseDouble(parts[1].trim());
+                        }
+
+                        values[i] = id + "," + direccion + "," + bicis + "," + anclajes + "," + operativo + "," + lat + "," + lon;
+
+                        datos += "Estación " + id + " - " + direccion + "\n";
+                        datos += "Bicis disponibles: " + bicis + ", Anclajes libres: " + anclajes + "\n";
+                        datos += "Operativa: " + (operativo ? "Sí" : "No") + "\n";
+                        datos += "Ubicación: (" + lat + ", " + lon + ")\n\n";
+                    }
+                } catch (org.json.JSONException e) {
+                    setDatos(getDatos().concat("Error al procesar los datos JSON: " + e.getMessage()));
+                }
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String getDatos() {
+        return datos;
+    }
+
+    public void setDatos(String datos) {
+        this.datos = datos;
+    }
+
+    public String[] getValues() {
+        return values;
+    }
+
+    public void setValues(String[] values) {
+        this.values = values;
+    }
+
+    public int getNumEst() {
+        return numEst;
+    }
+
+    public void setNumEst(int numEst) {
+        this.numEst = numEst;
+    }
+}
